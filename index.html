@@ -903,7 +903,10 @@ textarea.inp{resize:vertical;min-height:90px;font-family:'Tiro Bangla',serif;fon
 <script>
 // ══ DATA — IndexedDB (100 MB+) with localStorage fallback ══
 const DKEY='journal_lt_v1';
-let D={};
+// Use window.D so both global scripts and ES module code share the SAME object.
+// The ES module's firestoreDownload writes to window.D — this makes it live.
+if(!window.D) window.D = {};
+var D = window.D; // var (not let/const) so reassignment below updates window.D too
 
 // ── IndexedDB setup ──
 const IDB_NAME='journal_db';
@@ -951,7 +954,8 @@ function sv(){
   _balCacheKey=null;
   if(_svPending){_svQueue=true;return;}
   _svPending=true;
-  const snapshot=JSON.stringify(D);
+  // Always snapshot window.D — the canonical source of truth
+  const snapshot=JSON.stringify(window.D);
   idbSet(snapshot).then(()=>{
     _svPending=false;
     if(_svQueue){_svQueue=false;sv();}
@@ -973,21 +977,25 @@ let _dataLoaded=false;
 try{renderDate();}catch(e){}
 idbGet().then(raw=>{
   if(raw){
-    // IDB has data — use it, clean up any old localStorage copy
-    try{D=JSON.parse(raw);}catch(e){D={};}
+    // IDB has data — parse into window.D (shared with ES module scope)
+    try{
+      const parsed=JSON.parse(raw);
+      // Merge into window.D in-place so the var D alias stays valid
+      Object.keys(parsed).forEach(k=>{ window.D[k]=parsed[k]; });
+    }catch(e){}
     try{localStorage.removeItem(DKEY);localStorage.removeItem('salim_lt_v5');}catch(e){}
   } else {
     // First run or IDB empty — migrate from localStorage if exists
     try{
       const ls=localStorage.getItem(DKEY)||localStorage.getItem('salim_lt_v5');
       if(ls){
-        D=JSON.parse(ls);
+        const parsed=JSON.parse(ls);
+        Object.keys(parsed).forEach(k=>{ window.D[k]=parsed[k]; });
         idbSet(ls).then(()=>{
-          // migration done — remove from localStorage
           try{localStorage.removeItem(DKEY);localStorage.removeItem('salim_lt_v5');}catch(e){}
         }).catch(()=>{});
       }
-    }catch(e){D={};}
+    }catch(e){}
   }
   _dataLoaded=true;
   recalcAccBalances();
@@ -2988,7 +2996,12 @@ async function firestoreDownload(uid) {
       req.onerror = reject;
     });
     try {
-      window.D = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      // CRITICAL: merge in-place into window.D — do NOT replace the object.
+      // Replacing breaks the `var D` alias declared in the global script.
+      // Clear stale keys first, then copy cloud data in.
+      Object.keys(window.D).forEach(k=>{ delete window.D[k]; });
+      Object.keys(parsed).forEach(k=>{ window.D[k]=parsed[k]; });
       // Invalidate balance cache then re-render everything
       if(typeof window._balCacheKey !== 'undefined') window._balCacheKey = null;
       if(typeof recalcAccBalances==='function') recalcAccBalances();
