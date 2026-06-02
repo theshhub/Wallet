@@ -1425,29 +1425,44 @@ function renderDate(){
   if(window._dateClockInterval)clearInterval(window._dateClockInterval);
   window._dateClockInterval=setInterval(tick,1000);
 }
-// ══ 24-HOUR LOCK ══
-// Entries older than 24 hours are locked — cannot edit or delete
-const LOCK_MS = 24 * 60 * 60 * 1000;
-function isLocked(dateStr, ts) {
-  const now = Date.now();
-  if (ts && typeof ts === 'number' && ts > 1000000000000) {
-    return (now - ts) > LOCK_MS;
+function isLocked(dateStr, ts){
+  // If ts (timestamp) exists, use it for precise 24h check
+  if(ts && typeof ts === 'number' && ts > 1000000000000){
+    return (Date.now() - ts) > 24 * 60 * 60 * 1000;
   }
-  // No timestamp — lock if dateStr is strictly before today
-  if (dateStr) { return dateStr < today(); }
+  // Fallback: if dateStr is older than yesterday, lock it
+  if(dateStr){
+    const entryDate = new Date(dateStr);
+    const now = new Date();
+    return (now - entryDate) > 24 * 60 * 60 * 1000;
+  }
   return false;
 }
-function showLockWarning() {
-  const ex = document.getElementById('_lock_modal');
-  if (ex) ex.remove();
-  const m = document.createElement('div');
-  m.id = '_lock_modal';
-  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1.5rem;';
-  m.innerHTML = `<div style="background:var(--card,#1e1e2e);border-radius:18px;padding:1.5rem 1.2rem;max-width:280px;width:88%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4);">
-    <div style="font-size:2rem;margin-bottom:.4rem;">🔒</div>
-    <div style="font-family:'Tiro Bangla',serif;font-size:.92rem;color:var(--text,#cdd6f4);font-weight:700;margin-bottom:.35rem;">Entry Locked</div>
-    <div style="font-family:'Tiro Bangla',serif;font-size:.78rem;color:var(--t2,#a6adc8);margin-bottom:1rem;line-height:1.6;">This entry was saved more than 24 hours ago and cannot be edited or deleted.</div>
-    <button onclick="document.getElementById('_lock_modal').remove()" style="width:100%;padding:.65rem;background:linear-gradient(135deg,var(--accent,#4361ee),var(--purple,#7c3aed));border:none;border-radius:11px;cursor:pointer;font-family:'Tiro Bangla',serif;font-size:.85rem;color:#fff;font-weight:700;">OK</button>
-  </div>`;
-  document.body.appendChild(m);
-  m.addEventListener('click', e => { i
+function showLockWarning(){ showToast('🔒 ২৪ ঘণ্টার বেশি পুরনো — delete করা যাবে না'); }
+function getGoalsForDate(dateStr){ return (D._goals_history&&D._goals_history[dateStr])||D._goals||[]; }
+// ══════════════════════════════════════════════════════
+// ══ EXPENSE PERIOD STRIP + DATE COMBINED ══
+let activeExpPeriod='day';
+function renderExpPeriodStrip(){
+  const el=document.getElementById('exp-period-strip');if(!el)return;
+  const todayStr=today();const monthStr=thisMo();const yearStr=String(new Date().getFullYear());
+  function getExpForPeriod(period){
+    let total=0;
+    Object.keys(D).filter(k=>k.startsWith('exp_')).forEach(k=>{
+      const dateStr=k.replace('exp_','');
+      let inP=false;
+      if(period==='day') inP=dateStr===todayStr;
+      else if(period==='month') inP=dateStr.startsWith(monthStr);
+      else if(period==='year') inP=dateStr.startsWith(yearStr);
+      if(inP)(D[k]||[]).forEach(x=>{total+=x.amt||0;});
+    });return total;
+  }
+  function getIncomeForPeriod(period){
+    return getAccTxns().filter(t=>{
+      if(t.type!=='income')return false;
+      const d=t.date||'';
+      if(period==='day')return d===todayStr;
+      if(period==='month')return d.startsWith(monthStr);
+      if(period==='year')return d.startsWith(yearStr);
+      return false;
+    }).reduce((s,t)=>s+(t.amt||
