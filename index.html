@@ -106,13 +106,13 @@ const save=()=>{S.upd=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))
 push();render()};
 let dirty=0,saved={};const setSt=()=>{const e=$('#st');if(e)e.textContent=st},
 why=e=>e.code=='permission-denied'?'Firebase Rules are blocking saving. Update the Rules in Firebase Console.':'Cloud error: '+(e.code||e.message),
-push=()=>{if(!ref||!ready){dirty=1;return}dirty=0;st='Saving…';const{tx,...meta}=S,mo={},nx={},ops=[];
+push=()=>{if(!ref||!ready){dirty=1;return}dirty=0;st='Saving…';setSt();const{tx,...meta}=S,mo={},nx={},ops=[];
 tx.forEach(t=>{const k=(t.date||'0000-00').slice(0,7);(mo[k]=mo[k]||[]).push(t)});
-let big=0;for(const k in mo){const js=JSON.stringify(mo[k]);nx[k]=js;if(js.length>900000)big=1;if(saved[k]!==js)ops.push(b=>b.set(ref.collection('months').doc(k),{json:js}))}
+for(const k in mo)for(let i=0;i<mo[k].length;i+=1000){const id=i?k+'~'+i/1000:k,js=JSON.stringify(mo[k].slice(i,i+1000));nx[id]=js;if(saved[id]!==js)ops.push(b=>b.set(ref.collection('months').doc(id),{json:js}))}
 for(const k in saved)if(nx[k]===undefined)ops.push(b=>b.delete(ref.collection('months').doc(k)));
 ops.push(b=>b.set(ref,{json:JSON.stringify(meta),upd:S.upd,v:2}));
 let p=Promise.resolve();for(let i=0;i<ops.length;i+=400)p=p.then(()=>{const b=db.batch();ops.slice(i,i+400).forEach(f=>f(b));return b.commit()});
-p.then(()=>{saved=nx;if(st=='Saving…')st=big?'Saved. One month has too much data, please tell your developer':'Saved to cloud'},e=>{dirty=1;st=why(e)}).then(setSt)},
+p.then(()=>{saved=nx;if(st=='Saving…')st='Saved to cloud at '+new Date().toLocaleTimeString()+' · '+tx.length+' entries in '+new Set(Object.keys(nx).map(k=>k.split('~')[0])).size+' monthly pages'},e=>{dirty=1;st=why(e)}).then(setSt)},
 syncNow=()=>{if(!ref)return warn('Sign in first');ready?push():load()};
 const F=(k,id)=>S[k].find(x=>x.id==id),N=(k,id,f='name')=>(F(k,id)||{})[f],loc=()=>S.cur=='৳'?'en-IN':undefined;
 const $m=n=>(n<0?'-':'')+S.cur+Math.abs(n).toLocaleString(loc(),{maximumFractionDigits:2});
