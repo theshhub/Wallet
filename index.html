@@ -78,7 +78,7 @@ body[data-p=home] .back,body:not([data-p=home]) .fab{display:none}
 .empty{color:var(--mu);text-align:center;padding:22px}
 textarea{width:100%;height:200px;font:12px monospace;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:10px}
 </style></head><body>
-<div id="login"><b style="font-size:22px">My Wallet</b><small>Sign in to keep your data safe and synced.</small><button class="b p" style="flex:none;width:100%;max-width:320px" onclick="signIn()">Sign in with Google</button><button class="sm" onclick="localOnly()">Use on this device only</button></div>
+<div id="login"><b style="font-size:22px">My Wallet</b><small>Sign in to keep your data safe and synced.</small><button class="b p" style="flex:none;width:100%;max-width:320px" onclick="signIn()">Sign in with Google</button></div>
 <div id="app"></div>
 <button class="fab" onclick="txForm()" aria-label="Add transaction">+</button>
 <button class="back" onclick="goBack()" aria-label="Back">‹ Back</button>
@@ -87,10 +87,10 @@ textarea{width:100%;height:200px;font:12px monospace;background:var(--bg);color:
 const $=s=>document.querySelector(s),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),uid=()=>Math.random().toString(36).slice(2,9),
 td=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10),ym=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),
 KEY='wallet1',COL=['#1F8A8A','#4B5BC4','#C2467C','#D9822B','#2F7D62','#8E6BBF','#C9A227','#6B7A8F'],PAL=['#F4B400','#E8590C','#C2185B','#7B1FA2','#3949AB','#0288D1','#00897B','#43A047','#F9A825','#6D4C41'],
-PG=['home','accs','txs','exp','loan','plan','chart','set'],LBL={income:'Income',expense:'Expense',transfer:'Transfer',lent:'Lent',borrowed:'Borrowed',received:'Repayment received',paid:'Repayment paid'},
+PG=['home','accs','txs','exp','loan','plan','chart','set'],LBL={income:'Income',expense:'Expense',transfer:'Transfer',lent:'Lent',borrowed:'Borrowed',received:'Repayment received',paid:'Repayment paid',shortpaid:'Short paid',shortback:'Short refund',excessin:'Excess received',excessout:'Excess returned'},SXT=['shortpaid','shortback','excessin','excessout'],
 GRD={Transactions:'#1F6F78,#3F4FB0',Accounts:'#256650,#1F8A8A',Expenses:'#B3382C,#D9822B',Loans:'#34559A,#4B5BC4',Plan:'#1F6F78,#2F7D62',Charts:'#3F4FB0,#8E6BBF',Setup:'#5B41A3,#C2467C'},
 SUBT={Transactions:'Income, expenses, transfers and loans by date',Plan:'Budgets and savings goals',Charts:'Spending and trends',Setup:'Categories, recurring, data'};
-let user,ref,ready,S,lt='lent',ed='',xr='m',q='',dsel='',tf='all',ec='',ea='',fq=0,mon=td().slice(0,7),pg='home',charts=[],st='Saved on this device only';
+let user,ref,ready,S,lt='lent',ed='',xr='m',q='',dsel='',tf='all',ec='',ea='',ld='',fq=0,mon=td().slice(0,7),pg='home',charts=[],st='Not synced yet';
 const ic=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`,
 PLUS=ic('<path d="M12 5v14M5 12h14"/>'),CROSS=ic('<path d="M6 6l12 12M18 6L6 18"/>'),PEN=ic('<path d="M4 20h4L19 9l-4-4L4 16v4z"/>'),CHEV=ic('<path d="M9 6l6 6-6 6"/>'),SRCH=ic('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
 GEAR=ic('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>');
@@ -102,12 +102,22 @@ const norm=()=>{S.goal=S.goal||[];S.rec=S.rec||[];if(!S.cur||S.cur=='$')S.cur='�
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 S=S||seed();norm();
 const save=()=>{S.upd=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
-if(ref&&ready){st='Saving…';ref.set({json:JSON.stringify(S)}).then(()=>st='Saved to your private cloud storage',()=>st='Cloud not reachable. Saved on this device only.').then(()=>{const e=$('#st');if(e)e.textContent=st})}
-render()};
+push();render()};
+let dirty=0,saved={};const setSt=()=>{const e=$('#st');if(e)e.textContent=st},
+why=e=>e.code=='permission-denied'?'Firebase Rules are blocking saving. Update the Rules in Firebase Console.':'Cloud error: '+(e.code||e.message),
+push=()=>{if(!ref||!ready){dirty=1;return}dirty=0;st='Saving…';const{tx,...meta}=S,mo={},nx={},ops=[];
+tx.forEach(t=>{const k=(t.date||'0000-00').slice(0,7);(mo[k]=mo[k]||[]).push(t)});
+let big=0;for(const k in mo){const js=JSON.stringify(mo[k]);nx[k]=js;if(js.length>900000)big=1;if(saved[k]!==js)ops.push(b=>b.set(ref.collection('months').doc(k),{json:js}))}
+for(const k in saved)if(nx[k]===undefined)ops.push(b=>b.delete(ref.collection('months').doc(k)));
+ops.push(b=>b.set(ref,{json:JSON.stringify(meta),upd:S.upd,v:2}));
+let p=Promise.resolve();for(let i=0;i<ops.length;i+=400)p=p.then(()=>{const b=db.batch();ops.slice(i,i+400).forEach(f=>f(b));return b.commit()});
+p.then(()=>{saved=nx;if(st=='Saving…')st=big?'Saved. One month has too much data, please tell your developer':'Saved to cloud'},e=>{dirty=1;st=why(e)}).then(setSt)},
+syncNow=()=>{if(!ref)return warn('Sign in first');ready?push():load()};
 const F=(k,id)=>S[k].find(x=>x.id==id),N=(k,id,f='name')=>(F(k,id)||{})[f],loc=()=>S.cur=='৳'?'en-IN':undefined;
 const $m=n=>(n<0?'-':'')+S.cur+Math.abs(n).toLocaleString(loc(),{maximumFractionDigits:2});
 const big=n=>{const r=Math.round(Math.abs(n)*100),w=Math.floor(r/100);return`<div class="big${String(w).length>6?' s7':''}">${n<0?'-':''}${S.cur}${w.toLocaleString(loc())}<span class="dc">.${String(r%100).padStart(2,'0')}</span></div>`};
-const eff=(t,a)=>{const m=+t.amt||0,f=+t.fee||0;if(t.type=='transfer')return(t.acct==a?-(m+f):0)+(t.to==a?m:0);return t.acct==a?(({income:1,borrowed:1,received:1})[t.type]?m:-m)-f:0};
+const pos=t=>({income:1,borrowed:1,received:1,shortback:1,excessin:1})[t.type];
+const eff=(t,a)=>{const m=+t.amt||0,f=+t.fee||0;if(t.type=='transfer')return(t.acct==a?-(m+f):0)+(t.to==a?m:0);return t.acct==a?(pos(t)?m:-m)-f:0};
 const bal=a=>Math.round(((+a.open||0)+S.tx.reduce((s,t)=>s+eff(t,a.id),0))*100)/100,tot=()=>S.acc.reduce((s,a)=>s+bal(a),0);
 const mi=m=>S.tx.filter(t=>t.type=='income'&&t.date.startsWith(m)).reduce((s,t)=>s+ +t.amt,0),ex=m=>S.tx.filter(t=>t.date.startsWith(m)).reduce((s,t)=>s+(t.type=='expense'?+t.amt:0)+(+t.fee||0),0);
 function spend(m){const o={};S.tx.filter(t=>t.date.startsWith(m)).forEach(t=>{if(t.type=='expense')o[t.cat]=(o[t.cat]||0)+ +t.amt;if(+t.fee)o.fee=(o.fee||0)+ +t.fee});return o}
@@ -125,11 +135,11 @@ const ord=n=>n+(['th','st','nd','rd'][(n%100>10&&n%100<14)?0:Math.min(n%10,4)%4]
 
 /* transaction rows */
 const title=t=>t.type=='income'?N('src',t.src)||'Income':t.type=='expense'?N('cat',t.cat)||'Uncategorized':t.type=='transfer'?`${N('acc',t.acct)} to ${N('acc',t.to)}`:`${LBL[t.type]}: ${N('loan',t.loan,'person')||''}`;
-const sign=t=>({income:1,borrowed:1,received:1})[t.type]?1:t.type=='transfer'?0:-1;
+const sign=t=>pos(t)?1:t.type=='transfer'?0:-1;
 const hay=t=>[t.date,LBL[t.type],t.amt,t.note,N('acc',t.acct),N('acc',t.to),title(t)].join(' ').toLowerCase();
-const row=t=>`<div class="t" onclick="txForm('${t.id}')"><div><b>${esc(title(t))}</b><small>${LBL[t.type]} · ${esc(N('acc',t.acct))}${t.rid?' · recurring':''}${t.note?' · '+esc(t.note):''}${+t.fee?' · fee '+$m(+t.fee):''}</small></div><div class="${t.type=='income'?'in':t.type=='expense'?'out':''}">${['-','','+'][sign(t)+1]}${$m(+t.amt)}</div></div>`;
+const row=t=>`<div class="t" onclick="txForm('${t.id}')"><div><b>${esc(title(t))}</b><small>${LBL[t.type]} · ${esc(N('acc',t.acct))}${t.rid?' · recurring':''}${t.note?' · '+esc(t.note):''}${+t.fee?' · fee '+$m(+t.fee):''}</small></div><div class="${t.type=='income'||t.type=='shortback'||t.type=='excessin'?'in':t.type=='expense'||t.type=='shortpaid'||t.type=='excessout'?'out':''}">${['-','','+'][sign(t)+1]}${$m(+t.amt)}</div></div>`;
 const days=(l,f,r=row)=>{let h='',d='';l.forEach(t=>{if(t.date!=d){d=t.date;h+=`<div class="dh rowb" style="cursor:default"><span>${fd(d)}</span>${f?f(d):''}</div>`}h+=r(t)});return h};
-const kind=t=>['income','expense','transfer'].includes(t.type)?t.type:'loan',TF=[['all','All'],['income','Income'],['expense','Expense'],['loan','Loan'],['transfer','Transfer']];
+const kind=t=>['income','expense','transfer'].includes(t.type)?t.type:SXT.includes(t.type)?'short':'loan',TF=[['all','All'],['income','Income'],['expense','Expense'],['loan','Loan'],['transfer','Transfer'],['short','Short/Excess']];
 const tl=()=>{const k=q.trim().toLowerCase(),l=srt(S.tx.filter(t=>(tf=='all'||kind(t)==tf)&&(!dsel||t.date==dsel)&&(!k||hay(t).includes(k))));if(!l.length)return'<div class="empty">No transactions found.</div>';
 const sm=f=>l.filter(f).reduce((a,t)=>a+ +t.amt,0),n=l.length,
 a1=`income <span class="in">${$m(sm(t=>t.type=='income'))}</span>`,a2=`expenses <span class="out">${$m(l.reduce((a,t)=>a+(t.type=='expense'?+t.amt:0)+(+t.fee||0),0))}</span>`,
@@ -148,18 +158,18 @@ m.querySelectorAll('[data-r]').forEach(e=>e.onchange=()=>{rd();draw()});
 $('#fc').onclick=closeM;$('#fs').onclick=()=>{rd();const run=()=>{if(ok(v)!==false)closeM()};/^(Edit|Rename)/.test(ttl)?ask('Save these changes to this entry?',run):run()};
 if(del)$('#fd').onclick=()=>ask(dm||'Delete this entry permanently? This cannot be undone.',()=>{if(del()!==false)closeM()},'Delete')};
 draw()}
-const accO=()=>S.acc.map(a=>[a.id,`${N('grp',a.grp)||'Other'} · ${a.name}`]),catO=()=>S.cat.map(c=>[c.id,c.name]),srcO=()=>S.src.map(c=>[c.id,c.name]);
+const accO=()=>S.acc.map(a=>[a.id,`${N('grp',a.grp)||'Other'} · ${a.name}`]),catO=()=>{const n={};S.tx.forEach(t=>{if(t.type=='expense')n[t.cat]=(n[t.cat]||0)+1});return S.cat.map((c,i)=>[c,i]).sort((a,b)=>(n[b[0].id]||0)-(n[a[0].id]||0)||a[1]-b[1]).map(([c])=>[c.id,c.name])},srcO=()=>S.src.map(c=>[c.id,c.name]);
 const needAcc=()=>{if(!S.acc.length){warn('Add an account first.');return true}};
 const T=(k,l,t='text')=>({k,l,t});
 
 /* transactions */
-function txForm(id){if(needAcc())return;const e=F('tx',id),v=e?{...e}:{type:'expense',date:td(),amt:'',acct:S.acc[0].id,to:(S.acc[1]||S.acc[0]).id,fee:'',cat:(S.cat[0]||{}).id,src:(S.src[0]||{}).id,note:''};
-const fl=v=>{const f=[['income','expense','transfer'].includes(v.type)?{k:'type',l:'Type',t:'select',r:1,o:[['expense','Expense'],['income','Income'],['transfer','Transfer between accounts']]}:{k:'x',l:'Type',t:'select',o:[[v.type,LBL[v.type]]]},T('amt','Amount','number'),T('date','Date','date'),{k:'acct',l:v.type=='transfer'?'From account':'Account',t:'select',o:accO()}];
-if(v.type=='transfer')f.push({k:'to',l:'To account',t:'select',o:accO()});f.push(T('fee','Fee (optional)','number'));
+function txForm(id){if(needAcc())return;const e=F('tx',id),v=e?{...e}:{type:'expense',date:td(),amt:'',acct:S.acc[0].id,to:(S.acc[1]||S.acc[0]).id,fee:'',cat:(catO()[0]||[])[0],src:(S.src[0]||{}).id,note:''};
+const fl=v=>{const f=[['income','expense','transfer',...SXT].includes(v.type)?{k:'type',l:'Type',t:'select',r:1,o:[['expense','Expense'],['income','Income'],['transfer','Transfer between accounts'],['shortpaid','Short paid (not an expense)'],['shortback','Short refund (not income)'],['excessin','Excess received (not income)'],['excessout','Excess returned (not an expense)']]}:{k:'x',l:'Type',t:'select',o:[[v.type,LBL[v.type]]]},T('amt','Amount','number'),T('date','Date','date'),{k:'acct',l:v.type=='transfer'?'From account':'Account',t:'select',o:accO()}];
+if(v.type=='transfer')f.push({k:'to',l:'To account',t:'select',o:accO()});if(!SXT.includes(v.type))f.push(T('fee','Fee (optional)','number'));
 if(v.type=='expense')f.push({k:'cat',l:'Category',t:'select',o:catO()});if(v.type=='income')f.push({k:'src',l:'Income source',t:'select',o:srcO()});return f.concat(T('note','Note'))};
 form(e?'Edit transaction':'New transaction',fl,v,v=>{const m=+v.amt;if(!(m>0))return bad('Enter an amount greater than 0.');if(v.type=='transfer'&&v.acct==v.to)return bad('Choose two different accounts.');
 const lq=e&&e.loan&&F('loan',e.loan);if(lq){const{pr,pd}=lo(lq),pri=['lent','borrowed'].includes(e.type);if(pri&&m<pd-.005)return bad('Already repaid '+$m(pd)+'. The amount cannot be lower.');if(!pri&&pd-(+e.amt)+m>pr+.005)return bad('Repayments cannot exceed the loan amount of '+$m(pr)+'.')}
-delete v.x;v.amt=m;v.fee=+v.fee||0;return apply(()=>{const t=F('tx',id);t?Object.assign(t,v):S.tx.push({...v,id:uid(),ts:Date.now()})})},
+delete v.x;v.amt=m;v.fee=SXT.includes(v.type)?0:+v.fee||0;return apply(()=>{const t=F('tx',id);t?Object.assign(t,v):S.tx.push({...v,id:uid(),ts:Date.now()})})},
 e&&!['lent','borrowed'].includes(e.type)&&(()=>apply(()=>{const t=F('tx',id);if(t.rid){const r=F('rec',t.rid);if(r)(r.skip=r.skip||[]).push(t.rm||t.date.slice(0,7))}S.tx=S.tx.filter(x=>x.id!=id)})))}
 
 /* loans */
@@ -215,11 +225,14 @@ dl(d,fn)}
 /* views */
 const hero=(t,x,g)=>`<div class="hero" style="background:linear-gradient(135deg,${GRD[g||t]||GRD.Transactions})"><div class="ttl">${t}</div>${x||'<small>'+(SUBT[t]||'')+'</small>'}</div>`;
 const tile=(p,k,t,s,d)=>`<button class="tile k-${k}" onclick="go('${p}')"><span class="ico">${ic(d)}</span><span><b>${t}</b><span style="display:block;margin-top:2px;opacity:.85">${s}</span></span></button>`;
+const sxSum=p=>{const o={};SXT.forEach(k=>o[k]=0);S.tx.forEach(t=>{if(o[t.type]!==undefined&&t.date.startsWith(p))o[t.type]+=+t.amt});return o},
+sxCard=()=>{const a=sxSum(mon),b=sxSum(mon.slice(0,4)),W='style="width:88px;text-align:right"',L=(n,x,y,c)=>`<div class="rowb" style="cursor:default;margin-top:5px"><small style="flex:1">${n}</small><span class="${c||''}" ${W}>${$m(x)}</span><span class="${c||''}" ${W}>${$m(y)}</span></div>`,sl=o=>o.shortpaid-o.shortback,xl=o=>o.excessin-o.excessout;
+return`<div class="card"><div class="rowb" style="cursor:default"><b>Short / Excess</b><small ${W}>Month</small><small ${W}>Year</small></div>`+L('Short paid',a.shortpaid,b.shortpaid)+L('Short refund',a.shortback,b.shortback)+L('Net short loss',sl(a),sl(b),'out')+L('Excess received',a.excessin,b.excessin)+L('Excess returned',a.excessout,b.excessout)+L('Net excess kept',xl(a),xl(b),'in')+`</div>`};
 const mbar=()=>{const[y,n]=mon.split('-');return`<div class="mb"><button onclick="shift(-1)" aria-label="Previous month">‹</button><b>${new Date(y,n-1,1).toLocaleString(undefined,{month:'short',year:'2-digit'})}</b><button onclick="shift(1)" aria-label="Next month">›</button></div>`};
 const shift=d=>{const[y,n]=mon.split('-');mon=ym(new Date(y,n-1+d,1));render()};
 const go=p=>{location.hash=p};
-const goBack=()=>{if(pg=='exp'&&ec){ec='';render();scrollTo(0,0)}else if(pg=='accs'&&ea){ea='';render();scrollTo(0,0)}else go('home')},openCat=id=>{ec=id;render();scrollTo(0,0)},openAcc=id=>{ea=id;render();scrollTo(0,0)};
-onhashchange=()=>{const h=location.hash.slice(1),np=PG.includes(h)?h:'home';if(np!=pg){if(pg=='txs'){q=dsel='';tf='all'}if(pg=='exp')ed=ec='';if(pg=='accs')ea=''}pg=np;render();scrollTo(0,0)};
+const goBack=()=>{if(pg=='exp'&&ec){ec='';render();scrollTo(0,0)}else if(pg=='accs'&&ea){ea='';render();scrollTo(0,0)}else if(pg=='loan'&&ld){ld='';render();scrollTo(0,0)}else go('home')},openLoan=id=>{ld=id;render();scrollTo(0,0)},openCat=id=>{ec=id;render();scrollTo(0,0)},openAcc=id=>{ea=id;render();scrollTo(0,0)};
+onhashchange=()=>{const h=location.hash.slice(1),np=PG.includes(h)?h:'home';if(np!=pg){if(pg=='txs'){q=dsel='';tf='all'}if(pg=='exp')ed=ec='';if(pg=='accs')ea='';if(pg=='loan')ld=''}pg=np;render();scrollTo(0,0)};
 const views={
 home(){const k=td().slice(0,7),[lent,owe]=loans(),[tb,ts]=bud(k),t=tot(),as=Math.round(t+lent-owe);
 return`<div class="top"><label class="chip">${new Date().toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}<input type="date" aria-label="Pick a date" onchange="dsel=this.value;q='';go('txs')"></label><button class="spill" onclick="q=dsel='';fq=1;go('txs')" aria-label="Search transactions">${SRCH}<span>Search</span></button><button class="ic" onclick="go('set')" aria-label="Settings">${GEAR}</button></div>`+
@@ -229,20 +242,24 @@ accs(){if(ea&&F('acc',ea))return views.accD();ea='';return hero('Accounts','<sma
 (S.grp.map(g=>{const l=S.acc.filter(a=>a.grp==g.id);return`<div class="grp" style="background:color-mix(in srgb,${g.color} 10%,var(--cd))"><div class="rowb" style="cursor:default"><span class="gh"><i style="background:${g.color}"></i>${esc(g.name)}</span><b>${$m(l.reduce((s,a)=>s+bal(a),0))}</b></div><div class="acts" style="margin:8px 0"><button class="pl" onclick="itemForm('acc',0,'${g.id}')" aria-label="New account">${PLUS}</button><button class="pen" onclick="grpForm('${g.id}')" aria-label="Edit group">${PEN}</button></div>${l.map(a=>`<div class="ac"><div class="rowb" onclick="openAcc('${a.id}')"><span><b>${esc(a.name)}</b><small>${esc(a.note)}</small></span><span style="display:flex;align-items:center;gap:8px"><b>${$m(bal(a))}</b><button class="pen" onclick="event.stopPropagation();itemForm('acc','${a.id}')" aria-label="Edit account">${PEN}</button></span></div></div>`).join('')||'<small>No accounts yet</small>'}</div>`}).join('')||'<div class="empty">Create a group such as Bank, then add accounts to it.</div>')},
 accD(){const a=F('acc',ea),l=srt(S.tx.filter(t=>(t.acct==ea||t.to==ea)&&t.date.startsWith(mon))),v=t=>eff(t,ea),inn=l.reduce((s,t)=>s+Math.max(0,v(t)),0),out=l.reduce((s,t)=>s+Math.min(0,v(t)),0);
 const arow=t=>{const x=v(t);return`<div class="t" onclick="txForm('${t.id}')"><div><b>${esc(title(t))}</b><small>${LBL[t.type]}${t.rid?' · recurring':''}${t.note?' · '+esc(t.note):''}${+t.fee&&t.acct==ea?' · fee '+$m(+t.fee):''}</small></div><div class="${x>0?'in':x<0?'out':''}">${x>0?'+':''}${$m(x)}</div></div>`};
-return hero(esc(a.name),'<small>Balance</small>'+big(bal(a)),'Accounts')+mbar()+`<small style="margin:0 2px 4px">${l.length} transaction${l.length==1?'':'s'} · in <span class="in">${$m(inn)}</span> · out <span class="out">${$m(-out)}</span></small>`+(days(l,null,arow)||'<div class="empty">No transactions in this account this month.</div>')},
+return hero(esc(a.name),'<small>Balance</small>'+big(bal(a)),'Accounts')+mbar()+`<small style="margin:0 2px 4px">${l.length} transaction${l.length==1?'':'s'} · in <span class="in">${$m(inn)}</span> · out <span class="out">${$m(-out)}</span></small>`+`<small style="margin:0 2px">Includes transfers, loans and short/excess</small><div class="sec">Income <b class="in">${$m(inn)}</b></div>`+(days(l.filter(t=>v(t)>0),null,arow)||'<div class="empty">No income in this account this month.</div>')+`<div class="sec">Expenses <b class="out">${$m(-out)}</b></div>`+(days(l.filter(t=>v(t)<0),null,arow)||'<div class="empty">No expenses from this account this month.</div>')},
 txs(){return hero('Transactions')+`<div class="filters"><input type="search" placeholder="Search" value="${esc(q)}" aria-label="Search" oninput="q=this.value;$('#list').innerHTML=tl()"><input type="date" value="${dsel}" aria-label="Pick a date" onchange="dsel=this.value;render()"></div><div class="fl">${TF.map(([k,t])=>`<button class="fc${tf==k?' on':''}" onclick="tf='${k}';render()">${t}</button>`).join('')}</div>${dsel?`<button class="sm" onclick="dsel='';render()">Show all dates</button>`:''}<div id="list">${tl()}</div>`},
 exp(){if(ec&&(ec=='-'||F('cat',ec)))return views.expCat();ec='';
 const sp=spend(mon),l=srt(S.tx.filter(t=>t.type=='expense'&&(ed?t.date==ed:t.date.startsWith(mon)))),dt={};l.forEach(t=>dt[t.date]=(dt[t.date]||0)+ +t.amt);
 const orph=Object.keys(sp).filter(x=>x!='fee'&&!F('cat',x)).reduce((a,x)=>a+sp[x],0),rows=[...S.cat.map(c=>({id:c.id,n:c.name,v:sp[c.id]||0})),...(orph?[{id:'-',n:'Uncategorized',v:orph}]:[])].sort((a,b)=>b.v-a.v),mx=Math.max(1,...rows.map(r=>r.v));
-return hero('Expenses','<small>Total spent</small>'+big(ex(mon)))+mbar()+'<div class="sec">By category</div>'+
+return hero('Expenses','<small>Total spent</small>'+big(ex(mon)))+mbar()+sxCard()+'<div class="sec">By category</div>'+
 (rows.map((r,i)=>`<div class="card" style="margin:6px 0"><div class="rowb" onclick="openCat('${r.id}')"><span><i class="dot" style="background:${PAL[i%PAL.length]};margin-right:8px"></i><b>${esc(r.n)}</b></span><span style="display:flex;align-items:center;gap:8px"><b class="out">${$m(r.v)}</b><span class="chev">${CHEV}</span></span></div><div class="bar"><i style="width:${r.v/mx*100}%;background:${PAL[i%PAL.length]}"></i></div></div>`).join('')||'<div class="empty">No categories yet. Add them in Setup.</div>')+(sp.fee?`<small>Fees: ${$m(sp.fee)}</small>`:'')+
 `<div class="sec">By date</div><div class="filters" style="grid-template-columns:1fr auto"><input type="date" value="${ed}" aria-label="Show one date" onchange="ed=this.value;render()"><button class="b" onclick="ed='';render()">All dates</button></div>`+(days(l,d=>`<b class="out">${$m(dt[d])}</b>`)||'<div class="empty">No expenses found.</div>')},
 expCat(){const nm=ec=='-'?'Uncategorized':N('cat',ec),l=srt(S.tx.filter(t=>t.type=='expense'&&t.date.startsWith(mon)&&(ec=='-'?!F('cat',t.cat):t.cat==ec))),dt={};l.forEach(t=>dt[t.date]=(dt[t.date]||0)+ +t.amt);
 const crow=t=>{const sub=[t.note?esc(N('acc',t.acct)):'',t.rid?'recurring':'',+t.fee?'fee '+$m(+t.fee):''].filter(Boolean).join(' · ');return`<div class="t" onclick="txForm('${t.id}')"><div><b>${esc(t.note||N('acc',t.acct)||'Expense')}</b>${sub?'<small>'+sub+'</small>':''}</div><div class="out">-${$m(+t.amt)}</div></div>`};
 return hero(esc(nm),'<small>Spent in this category</small>'+big(l.reduce((a,t)=>a+ +t.amt,0)),'Expenses')+mbar()+(days(l,d=>`<b class="out">${$m(dt[d])}</b>`,crow)||'<div class="empty">No expenses in this category this month.</div>')},
-loan(){const[lent,owe]=loans(),ln=lt=='lent';
+loan(){if(ld&&F('loan',ld))return views.loanD();ld='';const[lent,owe]=loans(),ln=lt=='lent';
 return hero('Loans','<div class="two" style="margin-top:8px"><div class="hp"><small>Owed to you</small><b>'+$m(lent)+'</b></div><div class="hp"><small>You owe</small><b>'+$m(owe)+'</b></div></div>')+`<div class="seg"><button class="${ln?'on':''}" onclick="lt='lent';render()">Lent</button><button class="${ln?'':'on'}" onclick="lt='borrowed';render()">Borrowed</button></div><small style="margin:8px 2px">${ln?'Money you gave. It leaves the account you pick and returns when repaid.':'Money you took. It goes into the account you pick and leaves it when you repay.'}</small><div class="acts"><button class="pl" onclick="loanForm('${lt}')" aria-label="${ln?'Lend money':'Borrow money'}">${PLUS}</button></div>`+
-(S.loan.filter(l=>l.kind==lt).map(l=>({l,...lo(l)})).map(({l,pr,pd,out})=>`<div class="card" style="${out<=0?'opacity:.6':''}"><div class="rowb" style="cursor:default"><b>${esc(l.person)}</b><b style="color:var(--l)">${$m(out)}</b></div><small>${out<=0?'Settled · ':''}${$m(pd)} of ${$m(pr)} repaid</small><div class="bar"><i style="width:${pr?Math.min(100,pd/pr*100):0}%;background:var(--l)"></i></div><div class="acts">${out>0?`<button class="sm k-l" onclick="repay('${l.id}')">${ln?'Record repayment':'Repay'}</button>`:''}<button class="pen" onclick="loanEdit('${l.id}')" aria-label="Edit loan">${PEN}</button><button class="pen del" onclick="loanDel('${l.id}')" aria-label="Delete loan">${CROSS}</button></div></div>`).join('')||'<div class="empty">Nothing here yet.</div>')},
+(S.loan.filter(l=>l.kind==lt).map(l=>({l,...lo(l)})).map(({l,pr,pd,out})=>`<div class="card" style="cursor:pointer;${out<=0?'opacity:.6':''}" onclick="openLoan('${l.id}')"><div class="rowb"><b>${esc(l.person)}</b><span style="display:flex;align-items:center;gap:6px"><b style="color:var(--l)">${$m(out)}</b><span class="chev">${CHEV}</span></span></div><small>${out<=0?'Settled · ':''}${$m(pd)} of ${$m(pr)} repaid</small><div class="bar"><i style="width:${pr?Math.min(100,pd/pr*100):0}%;background:var(--l)"></i></div><div class="acts">${out>0?`<button class="sm k-l" onclick="event.stopPropagation();repay('${l.id}')">${ln?'Record repayment':'Repay'}</button>`:''}<button class="pen" onclick="event.stopPropagation();loanEdit('${l.id}')" aria-label="Edit loan">${PEN}</button><button class="pen del" onclick="event.stopPropagation();loanDel('${l.id}')" aria-label="Delete loan">${CROSS}</button></div></div>`).join('')||'<div class="empty">Nothing here yet.</div>')},
+loanD(){const l=F('loan',ld),{pr,pd,out}=lo(l),ln=l.kind=='lent',tx=S.tx.filter(t=>t.loan==ld).sort((a,b)=>a.date.localeCompare(b.date)||(a.ts||0)-(b.ts||0));let run=0;
+const rows=tx.map(t=>{const p=t.type=='lent'||t.type=='borrowed';run=Math.round((run+(p?+t.amt:-t.amt))*100)/100;const lb=p?(ln?'Lent':'Borrowed'):(run>.005?'Partial payment':'Payment (settled)');
+return`<div class="t" onclick="txForm('${t.id}')"><div><b>${lb}</b><small>${fd(t.date)} · ${esc(N('acc',t.acct))}${t.note?' · '+esc(t.note):''}${+t.fee?' · fee '+$m(+t.fee):''}</small><small>Remaining ${$m(run)}</small></div><div class="${sign(t)>0?'in':'out'}">${sign(t)>0?'+':'-'}${$m(+t.amt)}</div></div>`}).reverse().join('');
+return hero(esc(l.person),`<small>${ln?'Owed to you':'You owe'}</small>`+big(out)+`<small>${$m(pd)} of ${$m(pr)} repaid · ${tx.length} entr${tx.length==1?'y':'ies'}</small>`,'Loans')+(out>0?`<div class="acts"><button class="b p" onclick="repay('${l.id}')">${ln?'Record repayment':'Repay'}</button></div>`:'<small style="margin:8px 2px">Settled</small>')+'<div class="sec">History</div>'+(rows||'<div class="empty">No entries.</div>')},
 plan(){const sp=spend(mon),[tb,ts]=bud(mon);
 const mo=g=>{if(!g.date)return'';const n=new Date(),d=new Date(g.date+'T00:00'),m=Math.max(1,(d.getFullYear()-n.getFullYear())*12+d.getMonth()-n.getMonth()),r=g.target-g.saved;return r>0?` · needs ${$m(Math.ceil(r/m))} a month`:''};
 return hero('Plan')+mbar()+`<div class="pill k-b" style="margin-bottom:6px"><small>Budgeted categories</small><b style="font-size:20px">${$m(ts)} of ${$m(tb)}</b></div>`+
@@ -254,9 +271,9 @@ return hero('Charts')+mbar()+`<div class="card"><b>Spending by category</b>${e.l
 set(){const lst=(k,t)=>`<div class="sec">${t} <button class="pl" onclick="itemForm('${k}')" aria-label="Add">${PLUS}</button></div>${S[k].map(x=>`<div class="card rowb" onclick="itemForm('${k}','${x.id}')"><div><b>${esc(x.name)}</b><small>${esc(x.note)}</small></div><span style="display:flex;align-items:center;gap:8px"><small>${k=='cat'&&x.bud?'Budget '+$m(x.bud):''}</small><span class="pen">${PEN}</span></span></div>`).join('')}`;
 return hero('Setup')+`<div class="sec">Recurring <button class="pl" onclick="recForm()" aria-label="New recurring">${PLUS}</button></div><small>Added automatically on the day you choose. Tap one to edit it; changes apply to future entries.</small>`+
 (S.rec.map(r=>`<div class="card rowb" style="${r.active?'':'opacity:.6'}" onclick="recForm('${r.id}')"><div><b>${esc(r.name)}</b><small>${LBL[r.type]}, every month on the ${ord(+r.day)}${r.active?'':' · paused'}</small></div><div style="text-align:right"><b style="color:var(--r)">${$m(+r.amt)}</b><small>${r.active&&nextDue(r)?'Next '+dfmt(nextDue(r)):''}</small></div></div>`).join('')||'<div class="empty">No recurring items yet.</div>')+
-lst('cat','Expense categories')+lst('src','Income sources')+`<div class="sec">Currency symbol</div><input value="${esc(S.cur)}" maxlength="4" aria-label="Currency symbol" onchange="curChg(this.value)"><div class="sec">Account</div><small>${esc(user?user.email:'Not signed in (this device only)')}</small><div class="acts">${user?'<button class="b" onclick="doSignOut()">Sign out</button>':'<button class="b p" onclick="signIn()">Sign in with Google</button>'}</div>
+lst('cat','Expense categories')+lst('src','Income sources')+`<div class="sec">Currency symbol</div><input value="${esc(S.cur)}" maxlength="4" aria-label="Currency symbol" onchange="curChg(this.value)"><div class="sec">Account</div><small>${esc(user?user.email:'Not signed in')}</small><div class="acts">${user?'<button class="b" onclick="doSignOut()">Sign out</button>':'<button class="b p" onclick="signIn()">Sign in with Google</button>'}</div>
 <div class="sec">Export</div><select aria-label="Export period" onchange="xr=this.value">${[['m','This month'],['3','Last 3 months'],['6','Last 6 months'],['y','This year'],['all','All time']].map(o=>`<option value="${o[0]}"${xr==o[0]?' selected':''}>${o[1]}</option>`).join('')}</select><div class="acts"><button class="b" onclick="doExport('csv')">Download CSV</button><button class="b" onclick="doExport('xlsx')">Download Excel</button></div>
-<div class="sec">Your data</div><small id="st">${esc(st)}</small><div class="acts"><button class="b" onclick="backup()">Back up</button><button class="b" onclick="restore()">Restore</button></div>`}
+<div class="sec">Your data</div><small id="st">${esc(st)}</small><div class="acts"><button class="b" onclick="syncNow()">Sync now</button><button class="b" onclick="backup()">Back up</button><button class="b" onclick="restore()">Restore</button></div>`}
 };
 function drawCharts(){if(!window.Chart)return;charts.forEach(c=>c.destroy());charts=[];const cs=getComputedStyle(document.documentElement),ch=(id,c)=>charts.push(new Chart($(id),c));Chart.defaults.color=cs.getPropertyValue('--mu').trim();Chart.defaults.font.family='Inter,system-ui,sans-serif';
 const e=Object.entries(spend(mon)).sort((a,b)=>b[1]-a[1]),[y,n]=mon.split('-'),ms=[0,1,2,3,4,5].map(i=>ym(new Date(y,n-1-(5-i),1))),dd=Array(new Date(y,n,0).getDate()).fill(0),lg={plugins:{legend:{position:'bottom'}},maintainAspectRatio:false};
@@ -272,16 +289,24 @@ try{gen();render()}catch(e){$('#app').innerHTML='<div class="card"><b>Something 
 
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
-/* sign-in and cloud: the cloud copy is loaded on sign-in, and every change overwrites it */
+/* sign-in and cloud: Firestore holds the data (users/{uid} = settings, users/{uid}/months/{YYYY-MM} = that month's transactions); every change is written to it, the device copy is only a cache */
 firebase.initializeApp({apiKey:"AIzaSyDd92_jQR_wQO6hu5F43t1Qe2m3mdriiD4",authDomain:"amarwallet100.firebaseapp.com",projectId:"amarwallet100",storageBucket:"amarwallet100.firebasestorage.app",messagingSenderId:"551731165064",appId:"1:551731165064:web:e3d14804e810bd20f8ac3d"});
 const auth=firebase.auth(),db=firebase.firestore(),showLogin=on=>$('#login').style.display=on?'flex':'none';
-async function signIn(){try{localStorage.removeItem('wallet_local')}catch(e){}try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}catch(e){if(!/popup-closed|cancelled-popup/.test(e.code))warn('Login failed: '+(e.code||e.message))}}
-function localOnly(){try{localStorage.setItem('wallet_local','1')}catch(e){}showLogin(false)}
-const doSignOut=()=>ask('Sign out? Your data stays saved in the cloud.',async()=>{await auth.signOut();try{localStorage.removeItem(KEY)}catch(e){}S=seed();norm();render()},'Sign out');
-auth.onAuthStateChanged(async u=>{user=u;ref=null;ready=false;
-if(!u){let l;try{l=localStorage.getItem('wallet_local')}catch(e){}showLogin(!l);st='Saved on this device only';render();return}
-try{ref=db.collection('users').doc(u.uid);const sn=await ref.get(),rs=sn.exists&&sn.data().json&&JSON.parse(sn.data().json);
-if(rs&&!(S.uid==u.uid&&(S.upd||0)>(rs.upd||0))){S=rs;norm()}
-S.uid=u.uid;ready=true;st='Saved to your private cloud storage';gen();save()}catch(e){ref=null;st='Saved on this device only (cloud not reachable)';render()}
-showLogin(false)});
+db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+try{if(localStorage.getItem('wallet_seen'))showLogin(false)}catch(e){}
+async function signIn(){const p=new firebase.auth.GoogleAuthProvider();try{await auth.signInWithPopup(p)}catch(e){if(/popup-blocked|operation-not-supported/.test(e.code)){try{await auth.signInWithRedirect(p)}catch(x){warn('Login failed: '+(x.code||x.message))}}else if(!/popup-closed|cancelled-popup/.test(e.code))warn('Login failed: '+(e.code||e.message)+(e.code=='auth/unauthorized-domain'?' (add this website under Firebase > Authentication > Settings > Authorized domains)':''))}}
+const doSignOut=()=>ask('Sign out? Your data stays saved in the cloud.',async()=>{await auth.signOut();try{localStorage.removeItem(KEY);localStorage.removeItem('wallet_seen')}catch(e){}S=seed();norm();render()},'Sign out');
+const stash=o=>{try{localStorage.setItem('wallet_backup',JSON.stringify(o))}catch(e){}};
+async function load(){try{const sn=await ref.get(),md=sn.exists?sn.data():null,ms=await ref.collection('months').get();saved={};ms.forEach(d=>saved[d.id]=d.data().json);
+let rs=md&&md.json?JSON.parse(md.json):null;
+if(rs&&md.v==2){rs.tx=[];for(const k in saved)rs.tx.push(...JSON.parse(saved[k]))}else if(rs)rs.tx=rs.tx||[];
+if(rs){rs.upd=md.upd||rs.upd;const keep=(!S.uid&&S.tx.length>rs.tx.length)||(S.uid==user.uid&&(S.upd||0)>(rs.upd||0));
+if(keep)stash(rs);else{if(S.tx.length&&(S.upd||0)!=(rs.upd||0))stash(S);S=rs;norm()}}
+S.uid=user.uid;ready=true;st='Saved to cloud';gen();save()}catch(e){ready=false;st=why(e)+' (retrying)';render();setTimeout(()=>{if(ref&&!ready)load()},8000)}}
+auth.onAuthStateChanged(u=>{user=u;ref=null;ready=false;
+if(!u){try{localStorage.removeItem('wallet_seen')}catch(e){}showLogin(true);st='Not signed in';render();return}
+try{localStorage.setItem('wallet_seen','1')}catch(e){}
+ref=db.collection('users').doc(u.uid);showLogin(false);load()});
+setInterval(()=>{if(dirty&&ref&&ready)push()},15000);
+addEventListener('online',()=>{if(ref&&ready)push();else if(ref)load()});
 </script></body></html>
